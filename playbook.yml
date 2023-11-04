@@ -1,4 +1,4 @@
-- name: Unpack secrets
+- name: Pack secrets
   hosts: localhost
   tasks:
     - name: include self role

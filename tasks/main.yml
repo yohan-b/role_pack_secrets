@@ -56,3 +56,29 @@
     path: /mnt/cloud
     state: unmounted
   become: true
+
+- name: Create /mnt/archives_critiques/secrets directory on serveur-appart
+  ansible.builtin.file:
+    path: /mnt/archives_critiques/secrets
+    state: directory
+    owner: "{{ user }}"
+    group: "{{ user }}"
+  remote_user: "{{ user }}"
+  vars:
+    ansible_ssh_port: 2224
+  delegate_to: chez-yohan.scimetis.net
+  become: true
+
+- name: Get checksum of secrets.tar.gz.enc
+  ansible.builtin.stat:
+    path: "{{ WORKDIR }}/secrets.tar.gz.enc"
+  register: stats_output
+
+- name: Copy new secrets on serveur-appart
+  ansible.builtin.copy:
+    src: "{{ WORKDIR }}/secrets.tar.gz.enc"
+    dest: "/mnt/archives_critiques/secrets/secrets.tar.gz.enc-{{ stats_output.stat.checksum }}"
+  remote_user: "{{ user }}"
+  vars:
+    ansible_ssh_port: 2224
+  delegate_to: chez-yohan.scimetis.net
