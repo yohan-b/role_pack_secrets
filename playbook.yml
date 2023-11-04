@@ -1,0 +1,7 @@
+- name: Unpack secrets
+  hosts: localhost
+  tasks:
+    - name: include self role
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}"
+

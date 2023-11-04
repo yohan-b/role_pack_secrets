@@ -1,0 +1,58 @@
+---
+# tasks file for role_pack_secrets
+- name: Set Nextcloud credentials
+  ansible.builtin.include_tasks: "tasks/source_vars.yml"
+  with_items:
+    - NEXTCLOUD_USER
+    - NEXTCLOUD_PASSWORD
+  vars:
+    shell_script: "{{ WORKDIR }}/secrets/docker-duplicity-stack/nextcloud_password.sh"
+
+- name: Create secrets.tar.gz.enc
+  shell: "tar -czvpf - -C {{ WORKDIR }} secrets | openssl enc -aes-256-cbc -md md5 -pass env:SECRETS_ARCHIVE_PASSPHRASE -salt -out {{ WORKDIR }}/secrets.tar.gz.enc"
+
+- name: Create /mnt/cloud directory if it does not exist
+  ansible.builtin.file:
+    path: /mnt/cloud
+    state: directory
+    mode: '0755'
+  become: true
+
+- name: Install davfs2
+  ansible.builtin.package:
+    name: davfs2
+  become: true
+
+- name: Create /etc/davfs2 directory
+  ansible.builtin.file:
+    path: /etc/davfs2
+    state: directory
+    mode: '0755'
+  become: true
+
+- name: Copy using inline content
+  ansible.builtin.copy:
+    content: "/mnt/cloud {{ NEXTCLOUD_USER }} {{ NEXTCLOUD_PASSWORD }}"
+    dest: /etc/davfs2/secrets
+    mode: '0600'
+  become: true
+
+- name: mount /mnt/cloud
+  ansible.posix.mount:
+    path: /mnt/cloud
+    src: "https://{{ CLOUD_SERVER }}/remote.php/webdav/"
+    fstype: davfs
+    opts: "uid={{ user }},gid={{ user }}"
+    state: mounted
+  become: true
+
+- name: Copy new secrets in Nextcloud share
+  ansible.builtin.copy:
+    src: "{{ WORKDIR }}/secrets.tar.gz.enc"
+    dest: /mnt/cloud/Passwords/secrets.tar.gz.enc
+
+- name: unmount /mnt/cloud
+  ansible.posix.mount:
+    path: /mnt/cloud
+    state: unmounted
+  become: true
